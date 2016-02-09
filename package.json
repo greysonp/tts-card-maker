@@ -1,0 +1,16 @@
+{
+  "name": "card-maker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Greyson Parrelli",
+  "license": "MIT",
+  "dependencies": {
+    "csv": "^0.4.6",
+    "imagemagick": "^0.1.3",
+    "minimist": "^1.2.0"
+  }
+}
