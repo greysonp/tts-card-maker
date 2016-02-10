@@ -1,7 +1,8 @@
 var fs = require('fs');
-var im = require('imagemagick');
 var argv = require('minimist')(process.argv.slice(2));
 var parse = require('csv-parse');
+var exec = require('child_process').exec;
+var sprintf = require("sprintf-js").sprintf
 
 validateParameters(argv);
 run();
@@ -13,6 +14,7 @@ function run() {
     var width = argv.width;
     var height = argv.height;
     var padding = argv.padding || 0;
+    var bkgColor = argv['bkg-color'] || '#ffffff';
 
     // If the output path doesn't end with a '/', add one
     if (outputPath.charAt(outputPath.length - 1) != '/') {
@@ -42,6 +44,7 @@ function run() {
 
         var numTotal = output.length - 1;
         var numComplete = 0;
+        var numSuccess = 0;
         var numDigits = numTotal.toString().length;
         for (var i = 1; i < output.length; i++) {
             var text = output[i][0];
@@ -49,14 +52,15 @@ function run() {
             var filename = createFilename(i, numDigits);
 
             // Do the actual image generation
-            makeImage(text, fontSize, imWidth, imHeight, padding, outputPath, filename, function(err) {
+            makeImage(text, fontSize, imWidth, imHeight, padding, bkgColor, outputPath, filename, function(err) {
+                numComplete++;
                 if (err) {
                     console.error(err);
                 } else {
-                    numComplete++;
+                    numSuccess++;
                     console.log(numComplete + '/' + numTotal);
                     if (numComplete == numTotal) {
-                        console.log('Done! Completed ' + numComplete + '/' + numTotal + ' successfully.');
+                        console.log('Done! Completed ' + numSuccess + '/' + numTotal + ' successfully.');
                         console.log('Card images are located in ' + outputPath);
                     }
                 }
@@ -67,16 +71,19 @@ function run() {
 
 }
 
-function makeImage(text, fontSize, width, height, padding, outputPath, filename, callback) {
-    im.convert([
-        '-pointsize', fontSize,
-        '-gravity', 'Center',
-        '-size', width + 'x' + height,
-        '-bordercolor', 'white',
-        '-border', padding + 'x' + padding,
-        'caption:' + text,
-        outputPath + filename],
-    function(err, stdout){
+function makeImage(text, fontSize, width, height, padding, bkgColor, outputPath, filename, callback) {
+    var command = sprintf('convert -background "%s" -pointsize %s -gravity Center -size %sx%s -border %sx%s -bordercolor "%s" caption:"%s" %s',
+        bkgColor,
+        fontSize,
+        width,
+        height,
+        padding,
+        padding,
+        bkgColor,
+        text,
+        outputPath + filename
+    );
+    exec(command, function(err, stdout, stderr) {
         callback(err);
     });
 }
@@ -102,6 +109,7 @@ function validateParameters(args) {
         console.log('');
         console.log('Optional Parameters:');
         console.log('\t--padding: The padding around your card. The width and height will not be affected. Defaults to 0.');
+        console.log('\t--bkg-color: The background color of the card as a hex string, wrapped in quotes (e.g. \'#ff0000\'). Defaults to white.');
         process.exit();
     }
 
