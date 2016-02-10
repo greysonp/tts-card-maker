@@ -15,6 +15,7 @@ function run() {
     var height = argv.height;
     var padding = argv.padding || 0;
     var bkgColor = argv['bkg-color'] || '#ffffff';
+    var bkgImg = argv['bkg-img'] || null;
 
     // If the output path doesn't end with a '/', add one
     if (outputPath.charAt(outputPath.length - 1) != '/') {
@@ -52,7 +53,7 @@ function run() {
             var filename = createFilename(i, numDigits);
 
             // Do the actual image generation
-            makeImage(text, fontSize, imWidth, imHeight, padding, bkgColor, outputPath, filename, function(err) {
+            makeImage(text, fontSize, imWidth, imHeight, padding, bkgColor, bkgImg, outputPath, filename, function(err) {
                 numComplete++;
                 if (err) {
                     console.error(err);
@@ -71,18 +72,31 @@ function run() {
 
 }
 
-function makeImage(text, fontSize, width, height, padding, bkgColor, outputPath, filename, callback) {
-    var command = sprintf('convert -background "%s" -pointsize %s -gravity Center -size %sx%s -border %sx%s -bordercolor "%s" caption:"%s" %s',
-        bkgColor,
-        fontSize,
-        width,
-        height,
-        padding,
-        padding,
-        bkgColor,
-        text,
-        outputPath + filename
-    );
+function makeImage(text, fontSize, width, height, padding, bkgColor, bkgImg, outputPath, filename, callback) {
+    // Create the proper shell command, depending on whether we're using a background image or background color
+    var command = "";
+    if (bkgImg != null) {
+        command = sprintf('convert -background "#0000" -pointsize %s -gravity Center -size %sx%s caption:"%s" %s +swap -gravity Center -composite %s',
+            fontSize,
+            width,
+            height,
+            text,
+            bkgImg,
+            outputPath + filename
+        );
+    } else {
+        var command = sprintf('convert -background "%s" -pointsize %s -gravity Center -size %sx%s -border %sx%s -bordercolor "%s" caption:"%s" %s',
+            bkgColor,
+            fontSize,
+            width,
+            height,
+            padding,
+            padding,
+            bkgColor,
+            text,
+            outputPath + filename
+        );
+    }
     exec(command, function(err, stdout, stderr) {
         callback(err);
     });
@@ -100,7 +114,7 @@ function createFilename(n, digits) {
 }
 
 function validateParameters(args) {
-    if (args.help) {
+    if (args.help || (Object.keys(args).length == 1 && args._.length == 0)) {
         console.log('Required Parameters:');
         console.log('\t--input: The path to your input file.');
         console.log('\t--output: The path of the directory where your cards will be saved.');
@@ -110,6 +124,7 @@ function validateParameters(args) {
         console.log('Optional Parameters:');
         console.log('\t--padding: The padding around your card. The width and height will not be affected. Defaults to 0.');
         console.log('\t--bkg-color: The background color of the card as a hex string, wrapped in quotes (e.g. \'#ff0000\'). Defaults to white.');
+        console.log('\t--bkg-img: The background image to the text over. If specified, the --bkg-color value will not be used.');
         process.exit();
     }
 
@@ -151,5 +166,16 @@ function validateParameters(args) {
     if (!fs.lstatSync(output).isDirectory()) {
         console.error('The output path must point to a directory, not a file.');
         process.exit();
+    }
+
+    // Make sure the bkg image can be read (if it was set)
+    var bkgImg = args['bkg-img'];
+    if (bkgImg != null) {
+        try {
+            fs.accessSync(bkgImg, fs.R_OK);
+        } catch(e) {
+            console.error('The background image either doesn\'t exist or cannot be read.');
+            process.exit();
+        }
     }
 }
