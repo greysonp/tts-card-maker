@@ -16,6 +16,8 @@ function run() {
     var padding = argv.padding || 0;
     var bkgColor = argv['bkg-color'] || '#ffffff';
     var bkgImg = argv['bkg-img'] || null;
+    var font = argv['font'] || null;
+    var textColor = argv['text-color'] || '#000000';
 
     // If the output path doesn't end with a '/', add one
     if (outputPath.charAt(outputPath.length - 1) != '/') {
@@ -53,7 +55,7 @@ function run() {
             var filename = createFilename(i, numDigits);
 
             // Do the actual image generation
-            makeImage(text, fontSize, imWidth, imHeight, padding, bkgColor, bkgImg, outputPath, filename, function(err) {
+            makeImage(text, font, fontSize, textColor, imWidth, imHeight, padding, bkgColor, bkgImg, outputPath, filename, function(err) {
                 numComplete++;
                 if (err) {
                     console.error(err);
@@ -72,12 +74,20 @@ function run() {
 
 }
 
-function makeImage(text, fontSize, width, height, padding, bkgColor, bkgImg, outputPath, filename, callback) {
+function makeImage(text, font, fontSize, textColor, width, height, padding, bkgColor, bkgImg, outputPath, filename, callback) {
+    // Create string to use the specified font if one was set
+    var fontString = '';
+    if (font != null) {
+        fontString = '-font ' + font;
+    }
+
     // Create the proper shell command, depending on whether we're using a background image or background color
-    var command = "";
+    var command = '';
     if (bkgImg != null) {
-        command = sprintf('convert -background "#0000" -pointsize %s -gravity Center -size %sx%s caption:"%s" %s +swap -gravity Center -composite %s',
+        command = sprintf('convert -background "#0000" %s -pointsize %s -fill "%s" -gravity Center -size %sx%s caption:"%s" %s +swap -gravity Center -composite %s',
+            fontString,
             fontSize,
+            textColor,
             width,
             height,
             text,
@@ -85,9 +95,11 @@ function makeImage(text, fontSize, width, height, padding, bkgColor, bkgImg, out
             outputPath + filename
         );
     } else {
-        var command = sprintf('convert -background "%s" -pointsize %s -gravity Center -size %sx%s -border %sx%s -bordercolor "%s" caption:"%s" %s',
+        var command = sprintf('convert -background "%s" %s -pointsize %s -fill "%s" -gravity Center -size %sx%s -border %sx%s -bordercolor "%s" caption:"%s" %s',
+            fontString,
             bkgColor,
             fontSize,
+            textColor,
             width,
             height,
             padding,
@@ -125,6 +137,8 @@ function validateParameters(args) {
         console.log('\t--padding: The padding around your card. The width and height will not be affected. Defaults to 0.');
         console.log('\t--bkg-color: The background color of the card as a hex string, wrapped in quotes (e.g. \'#ff0000\'). Defaults to white.');
         console.log('\t--bkg-img: The background image to the text over. If specified, the --bkg-color value will not be used.');
+        console.log('\t--font: The path to the font file that will be used to render the text.');
+        console.log('\t--text-color: The color of the text that will be rendered on the card. Defaults to black.');
         process.exit();
     }
 
@@ -175,6 +189,17 @@ function validateParameters(args) {
             fs.accessSync(bkgImg, fs.R_OK);
         } catch(e) {
             console.error('The background image either doesn\'t exist or cannot be read.');
+            process.exit();
+        }
+    }
+
+    // Make sure the font file can be read (if it was set)
+    var font = args['font'];
+    if (font != null) {
+        try {
+            fs.accessSync(font, fs.R_OK);
+        } catch(e) {
+            console.error('The font file either doesn\'t exist or cannot be read.');
             process.exit();
         }
     }
